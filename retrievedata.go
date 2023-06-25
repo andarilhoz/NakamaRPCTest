@@ -6,8 +6,11 @@ import (
 	"database/sql"
 	"encoding/hex"
 	"encoding/json"
-	"os"
+	"io/ioutil"
 	"strings"
+
+	"io"
+	"os"
 
 	"github.com/heroiclabs/nakama-common/runtime"
 )
@@ -25,63 +28,70 @@ type Response struct {
 	DataContent *string `json:"content"`
 }
 
+type DBExecutor interface {
+	ExecContext(ctx context.Context, query string, args ...interface{}) (sql.Result, error)
+}
+
+type NakamaModuleInterface interface {
+}
+
+type LoggerInterface interface {
+	Debug(format string, v ...interface{})
+	Info(format string, v ...interface{})
+	Warn(format string, v ...interface{})
+	Error(format string, v ...interface{})
+}
+
 func RpcRetrieveData(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
 	logger.Debug("RetrieveData RPC called")
 	logger.Info("Payload: %s", payload)
 
-	var request PayloadRequest
-
-	if err := json.Unmarshal([]byte(payload), &request); err != nil {
+	request, err := DeserializePayload(payload)
+	if err != nil {
 		return "", runtime.NewError("unable to unmarshal payload", 3)
 	}
 
-	request.PopulateDefaultValues()
-
-	logger.Info("Payload Version: %s", request.RequestVersion)
-
-	content, err := ReadFileFromDisk(logger, request.RequestType, request.RequestVersion)
+	filePath := GetFilePath(request)
+	file, err := os.Open(filePath)
 	if err != nil {
 		return "", runtime.NewError("Unable to open file", 5)
 	}
 
-	logger.Info("Content: %s", content)
+	return ExecuteRpcRetrieveData(ctx, logger, db, nk, file, request)
+}
 
-	var contentHash = CalculateHash(content)
+func ExecuteRpcRetrieveData(ctx context.Context, logger LoggerInterface, db DBExecutor, nk NakamaModuleInterface, reader io.Reader, request PayloadRequest) (string, error) {
 
-	logger.Info("HashResult: %s", contentHash)
-
-	var hashesAreEqual bool
-	if request.RequestHash != nil {
-		hashesAreEqual = contentHash == *request.RequestHash
-	} else {
-		hashesAreEqual = false
+	content, err := ReadFileFromDisk(reader)
+	if err != nil {
+		return "", runtime.NewError("Unable to read file", 13)
 	}
 
-	if err := SaveRequestInDatabase(db, ctx, logger, request, hashesAreEqual); err != nil {
+	var contentHash = CalculateHash(content)
+	request_hash := ConvertNullablePointerToString(request.RequestHash)
+	var equalHashes = contentHash == request_hash
+
+	if err := SaveRequestInDatabase(ctx, db, request, equalHashes); err != nil {
 		return "", runtime.NewError("Unable to save to database", 13)
 	}
 
-	var dataContent *string
-	if hashesAreEqual {
-		dataContent = &content
-	} else {
-		dataContent = nil
-	}
-
-	request_hash := ConvertNullablePointerToString(request.RequestHash)
-	responseObject := Response{
-		DataType:    request.RequestType,
-		DataVersion: request.RequestVersion,
-		DataHash:    request_hash,
-		DataContent: dataContent,
-	}
-
-	response, err := json.Marshal(responseObject)
+	response, err := GenerateResponse(request, request_hash, content, equalHashes)
 	if err != nil {
 		return "", runtime.NewError("unable to marshal payload", 13)
 	}
 
-	return string(response), nil
+	return response, nil
+}
+
+func DeserializePayload(payload string) (PayloadRequest, error) {
+	var request PayloadRequest
+
+	if err := json.Unmarshal([]byte(payload), &request); err != nil {
+		return PayloadRequest{}, err
+	}
+
+	request.PopulateDefaultValues()
+	return request, nil
 }
 
 func (request *PayloadRequest) PopulateDefaultValues() {
@@ -94,25 +104,25 @@ func (request *PayloadRequest) PopulateDefaultValues() {
 	}
 }
 
-func ReadFileFromDisk(logger runtime.Logger, requestType string, requestVersion string) (string, error) {
+func ReadFileFromDisk(reader io.Reader) (string, error) {
+	//if file is too large, this should be replaced to read line by line
+	content, err := ioutil.ReadAll(reader)
+	if err != nil {
+		return "", err
+	}
+	return string(content), nil
+}
+
+func GetFilePath(request PayloadRequest) string {
 	var builder strings.Builder
 
 	builder.WriteString("/nakama/json_test_files/")
-	builder.WriteString(requestType)
+	builder.WriteString(request.RequestType)
 	builder.WriteString("/")
-	builder.WriteString(requestVersion)
+	builder.WriteString(request.RequestVersion)
 	builder.WriteString(".json")
 
-	var path string = builder.String()
-
-	//if file is too large, this should be replaced to read line by line
-	content, err := os.ReadFile(path)
-	if err != nil {
-		logger.Error("Error opening file, %v", err)
-		return "", err
-	}
-
-	return string(content), nil
+	return builder.String()
 }
 
 func CalculateHash(content string) string {
@@ -120,14 +130,13 @@ func CalculateHash(content string) string {
 	return hex.EncodeToString(sum[:])
 }
 
-func SaveRequestInDatabase(db *sql.DB, ctx context.Context, logger runtime.Logger, request PayloadRequest, hashesAreEqual bool) error {
+func SaveRequestInDatabase(ctx context.Context, db DBExecutor, request PayloadRequest, hashesAreEqual bool) error {
 	request_hash := ConvertNullablePointerToString(request.RequestHash)
 	_, err := db.ExecContext(ctx, `
 	INSERT INTO requests (request_type, request_version, request_hash, request_hashes_are_equal)
-	VALUES ($1,$2, $3,$4)
+	VALUES ($1,$2,$3,$4)
 	`, request.RequestType, request.RequestVersion, request_hash, hashesAreEqual)
 	if err != nil {
-		logger.Error("Error: %s", err.Error())
 		return err
 	}
 
@@ -140,4 +149,27 @@ func ConvertNullablePointerToString(pointer *string) string {
 	} else {
 		return ""
 	}
+}
+
+func GenerateResponse(request PayloadRequest, request_hash string, content string, equalHashes bool) (string, error) {
+	var dataContent *string
+	if equalHashes {
+		dataContent = &content
+	} else {
+		dataContent = nil
+	}
+
+	responseObject := Response{
+		DataType:    request.RequestType,
+		DataVersion: request.RequestVersion,
+		DataHash:    request_hash,
+		DataContent: dataContent,
+	}
+
+	response, err := json.Marshal(responseObject)
+	if err != nil {
+		return "", err
+	}
+
+	return string(response), nil
 }
