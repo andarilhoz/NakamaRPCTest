@@ -1,4 +1,4 @@
-package rpc
+package main
 
 import (
 	"context"
@@ -7,9 +7,6 @@ import (
 	"io"
 	"strings"
 	"testing"
-
-	_db "heroiclabs.com/go-setup-demo/db"
-	_pl "heroiclabs.com/go-setup-demo/payload"
 )
 
 type MockLogger struct {
@@ -43,10 +40,10 @@ func TestRpcRetrieveData(t *testing.T) {
 	type args struct {
 		ctx     context.Context
 		logger  LoggerInterface
-		db      _db.DBExecutorInterface
+		db      DBExecutorInterface
 		nk      NakamaModuleInterface
 		reader  io.Reader
-		payload _pl.PayloadRequest
+		payload PayloadRequest
 	}
 	mockLogger := new(MockLogger)
 	nakamaMock := new(MockNakamaModule)
@@ -73,7 +70,7 @@ func TestRpcRetrieveData(t *testing.T) {
 				db:      mock,
 				nk:      nakamaMock,
 				reader:  strings.NewReader("content"),
-				payload: _pl.PayloadRequest{},
+				payload: PayloadRequest{},
 			},
 			want:    `{"type":"","version":"","hash":"","content":null}`,
 			wantErr: false,
@@ -86,7 +83,7 @@ func TestRpcRetrieveData(t *testing.T) {
 				db:     mock,
 				nk:     nakamaMock,
 				reader: strings.NewReader("Hello World"),
-				payload: _pl.PayloadRequest{
+				payload: PayloadRequest{
 					RequestType:    "core",
 					RequestVersion: "1.0.0",
 					RequestHash:    &[]string{"a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e"}[0],
@@ -103,7 +100,7 @@ func TestRpcRetrieveData(t *testing.T) {
 				db:     mock,
 				nk:     nakamaMock,
 				reader: strings.NewReader("Hello World"),
-				payload: _pl.PayloadRequest{
+				payload: PayloadRequest{
 					RequestType:    "core",
 					RequestVersion: "1.0.0",
 					RequestHash:    &[]string{"123abc321"}[0],
@@ -120,7 +117,7 @@ func TestRpcRetrieveData(t *testing.T) {
 				db:      mockFalty,
 				nk:      nakamaMock,
 				reader:  strings.NewReader("content"),
-				payload: _pl.PayloadRequest{},
+				payload: PayloadRequest{},
 			},
 			want:    "",
 			wantErr: true,
@@ -133,7 +130,7 @@ func TestRpcRetrieveData(t *testing.T) {
 				db:      mockFalty,
 				nk:      nakamaMock,
 				reader:  brokenReader,
-				payload: _pl.PayloadRequest{},
+				payload: PayloadRequest{},
 			},
 			want:    "",
 			wantErr: true,
