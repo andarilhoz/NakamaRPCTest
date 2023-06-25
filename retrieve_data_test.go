@@ -65,6 +65,40 @@ func TestRpcRetrieveData(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name: "Test Case Success Same Hash",
+			args: args{
+				ctx:    context.Background(),
+				logger: mockLogger,
+				db:     mock,
+				nk:     nakamaMock,
+				reader: strings.NewReader("Hello World"),
+				payload: PayloadRequest{
+					RequestType:    "core",
+					RequestVersion: "1.0.0",
+					RequestHash:    &[]string{"a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e"}[0],
+				},
+			},
+			want:    `{"type":"core","version":"1.0.0","hash":"a591a6d40bf420404a011733cfb7b190d62c65bf0bcda32b57b277d9ad9f146e","content":"Hello World"}`,
+			wantErr: false,
+		},
+		{
+			name: "Test Case Success Diff Hash",
+			args: args{
+				ctx:    context.Background(),
+				logger: mockLogger,
+				db:     mock,
+				nk:     nakamaMock,
+				reader: strings.NewReader("Hello World"),
+				payload: PayloadRequest{
+					RequestType:    "core",
+					RequestVersion: "1.0.0",
+					RequestHash:    &[]string{"123abc321"}[0],
+				},
+			},
+			want:    `{"type":"core","version":"1.0.0","hash":"123abc321","content":null}`,
+			wantErr: false,
+		},
+		{
 			name: "Test Case DB Error",
 			args: args{
 				ctx:     context.Background(),
