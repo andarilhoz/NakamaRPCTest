@@ -1,10 +1,12 @@
-package main
+package db
 
 import (
 	"context"
 	"database/sql"
 	"errors"
 	"testing"
+
+	_pl "heroiclabs.com/go-setup-demo/payload"
 )
 
 type mockDB struct {
@@ -19,9 +21,9 @@ func (db *mockDB) ExecContext(ctx context.Context, query string, args ...interfa
 
 func TestSaveRequestInDatabase(t *testing.T) {
 	type args struct {
-		db             DBExecutor
+		db             DBExecutorInterface
 		ctx            context.Context
-		request        PayloadRequest
+		request        _pl.PayloadRequest
 		hashesAreEqual bool
 	}
 	mock := &mockDB{
@@ -43,7 +45,7 @@ func TestSaveRequestInDatabase(t *testing.T) {
 			args: args{
 				db:  mock,
 				ctx: context.Background(),
-				request: PayloadRequest{
+				request: _pl.PayloadRequest{
 					RequestType:    "level",
 					RequestVersion: "1.2.3",
 					RequestHash:    &[]string{"123abc321"}[0],
@@ -58,7 +60,7 @@ func TestSaveRequestInDatabase(t *testing.T) {
 			args: args{
 				db:  mockFalty,
 				ctx: context.Background(),
-				request: PayloadRequest{
+				request: _pl.PayloadRequest{
 					RequestType:    "level",
 					RequestVersion: "1.2.3",
 					RequestHash:    &[]string{"123abc321"}[0],

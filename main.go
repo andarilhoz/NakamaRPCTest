@@ -6,6 +6,8 @@ import (
 	"os"
 	"time"
 
+	_rpc "heroiclabs.com/go-setup-demo/rpc"
+
 	"github.com/heroiclabs/nakama-common/runtime"
 )
 
@@ -17,7 +19,7 @@ func InitModule(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runti
 		return createDBErr
 	}
 
-	initializeRPCErr := initializer.RegisterRpc("retrievedata", RpcRetrieveData)
+	initializeRPCErr := initializer.RegisterRpc("retrievedata", _rpc.RpcRetrieveData)
 	if initializeRPCErr != nil {
 		return initializeRPCErr
 	}
