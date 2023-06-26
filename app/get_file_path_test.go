@@ -1,14 +1,12 @@
-package ioutil
+package main
 
 import (
 	"testing"
-
-	_pl "heroiclabs.com/go-setup-demo/payload"
 )
 
 func TestGetFilePath(t *testing.T) {
 	type args struct {
-		request _pl.PayloadRequest
+		request PayloadRequest
 	}
 	tests := []struct {
 		name string
@@ -18,7 +16,7 @@ func TestGetFilePath(t *testing.T) {
 		{
 			name: "Test Case Filled",
 			args: args{
-				_pl.PayloadRequest{
+				PayloadRequest{
 					RequestType:    "level",
 					RequestVersion: "1.2.3",
 				},

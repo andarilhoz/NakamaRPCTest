@@ -1,4 +1,4 @@
-module heroiclabs.com/go-setup-demo
+module nakama/rpc
 
 go 1.20
 
