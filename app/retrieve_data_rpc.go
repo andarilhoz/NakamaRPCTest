@@ -34,16 +34,17 @@ var (
 
 func RpcRetrieveData(ctx context.Context, logger runtime.Logger, db *sql.DB, nk runtime.NakamaModule, payload string) (string, error) {
 	logger.Debug("RetrieveData RPC called")
-	logger.Info("Payload: %s", payload)
 
 	request, err := DeserializePayload(payload)
 	if err != nil {
+		logger.Error("Error deserializing payload %s", payload)
 		return "", errBadInput
 	}
 
 	filePath := GetFilePath(request)
 	file, err := os.Open(filePath)
 	if err != nil {
+		logger.Error("Error opening file, path: %s", filePath)
 		return "", errFileFound
 	}
 
@@ -54,6 +55,7 @@ func ExecuteRpcRetrieveData(ctx context.Context, logger LoggerInterface, db DBEx
 
 	content, err := ReadFileFromDisk(reader)
 	if err != nil {
+		logger.Error("Error reading file from disk: %s", err.Error())
 		return "", errInternalError
 	}
 
@@ -62,11 +64,13 @@ func ExecuteRpcRetrieveData(ctx context.Context, logger LoggerInterface, db DBEx
 	var equalHashes = contentHash == request_hash
 
 	if err := SaveRequestInDatabase(ctx, db, request, equalHashes); err != nil {
+		logger.Error("Error saving request in database: %s", err.Error())
 		return "", errInternalError
 	}
 
 	response, err := GenerateResponse(request, request_hash, content, equalHashes)
 	if err != nil {
+		logger.Error("Error generating response: %s", err.Error())
 		return "", errInternalError
 	}
 

@@ -12,11 +12,11 @@ docker-compose up -d
 
 ## Organization
 
-The code structure went through different approaches during development. Initially, files were separated by context in each package. However, i realized that maybe that would be an overengineering, so i decided to keep all files in the same folder to improve understandability and deployment since it is a simple application. Functions were kept small, following the principle of single responsibility, which resulted in multiple `.go` files in exchange of a cleaner code. Additionally, a pointer was included inside the payload request to fulfill the requirement of "null" for the hash and content as mentioned in the test.
+The code structure went through different approaches during development. Initially, files were separated by context in each package. However, i realized that maybe that would be an overengineering, so i decided to keep all files in the same folder to improve understandability and deployment since it is a simple application. Functions were kept small, following the principle of single responsibility, which resulted in multiple `.go` files in exchange of a cleaner code. Additionally, a pointer was included inside the payload request and payload response to fulfill the requirement of "null" for the hash and content as mentioned in the test.
 
 ## Database Storage
 
-A new table called "requests" was created to store individual successful requests. This decision was made to track cases where the hashes didn't match and to provide an audit trail of the requested operations. As the content is already stored as a file in the database, i didn't include it in the table. 
+A new table called "requests" was created to store individual successful requests. This decision was made to track cases where the hashes didn't match and to provide an audit trail of the requested operations. As the content is already stored as a file in the server, i didn't include it in the table. 
 
 ## Thoughts and Ideas about the Task
 
